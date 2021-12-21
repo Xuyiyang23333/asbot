@@ -4,7 +4,7 @@ import pytz
 import nonebot
 from nonebot import on_command, CommandSession
 
-imgURI = 'https://test.yxyy.top/%E8%8F%8A%E5%AE%9D.jpg'
+imgURI = 'https://i.loli.net/2021/11/28/vQXANjo1OnYmDz9.jpg'
 
 @on_command('asup')
 async def manual_up(session: CommandSession):

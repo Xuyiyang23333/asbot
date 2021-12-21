@@ -11,7 +11,7 @@ async def liveInfo(u):
 
 userID = 349990299
 nickname = f'听风'
-groupList = [131211694, 783224265]
+groupList = [131211694, 783224265, 837491344]
 previousVideo, title, desc = sync(videoInfo(user.User(userID)))
 oldLiveStat, liveTitle, liveUrl, liveCover = sync(liveInfo(user.User(userID)))
 @nonebot.scheduler.scheduled_job('interval', minutes=5)

@@ -1,0 +1,15 @@
+from datetime import datetime
+from config import groupID
+import nonebot
+from aiocqhttp.exceptions import Error as CQHttpError
+
+@nonebot.scheduler.scheduled_job('cron', hour='*')
+async def tell_time():
+    bot = nonebot.get_bot()
+    now = datetime.now()
+    try:
+        for g in groupID:
+            await bot.send_group_msg(group_id=131211694,
+                                     message=f'现在{now.hour}点整啦！[CQ:image,file=https://i.loli.net/2021/11/12/RN3O7UYre4hmJSl.gif]')
+    except CQHttpError:
+        pass

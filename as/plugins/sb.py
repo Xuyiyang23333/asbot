@@ -1,6 +1,6 @@
 from nonebot import on_command, CommandSession
 import random, sqlite3, nonebot
-from config import GoodAnsList, badAnsList, blockedGroupID, allowMsgList, blockMsgList
+from config import groupID, GoodAnsList, badAnsList, blockedGroupID, allowMsgList, blockMsgList
 
 bot = nonebot.get_bot()
 
@@ -33,8 +33,30 @@ def un_cap(raw):
             out += c
     return out
 
+lastSb = {}
+sbCnt = {}
+
+#----main----
+
+@nonebot.scheduler.scheduled_job('cron', hour='20')
+async def auto_mute():
+    my_id = await bot.get_login_info()
+    for group in groupID:
+        con = sqlite3.connect('asbot.db')
+        cur = con.cursor()
+        user_id = cur.execute('select qqNum from sbTop where grpNum=? order by count desc limit 1', (group, )).fetchall()[0][0]
+        con.close()
+        my_info = await bot.get_group_member_info(group_id=group, user_id=my_id['user_id'])
+        sb_info = await bot.get_group_member_info(group_id=group, user_id=user_id)
+        i_am_admin = my_info['role'] in ['admin', 'owner']
+        is_admin = sb_info['role'] not in ['admin', 'owner']
+        if i_am_admin and is_admin:
+            await bot.send_group_msg(group_id=group, message='[CQ:at,qq=' + str(user_id) + ']今日您是sbTop榜首！作为机器人，我无权将您禁言。但请问问自己：“这一切值得吗？”')
+            #await bot.set_group_ban(group_id=group, user_id=user_id, duration=600)
+
 @on_command('sb', only_to_me=False, patterns='傻逼|[sS][bB]|啥[bB]')
 async def sb(session: CommandSession):
+    global lastSb, sbCnt
     message_id = session.event['message_id']
     user_id = session.event['user_id']
     rawMessage = session.event['raw_message']
@@ -47,6 +69,11 @@ async def sb(session: CommandSession):
         group_id = session.event['group_id']
         if group_id in blockedGroupID:
             sendFlag = False
+        my_id = await bot.get_login_info()
+        my_info = await bot.get_group_member_info(group_id=group_id, user_id=my_id['user_id'])
+        sb_info = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+        i_am_admin = my_info['role'] in ['admin', 'owner']
+        is_admin = sb_info['role'] not in ['admin', 'owner']
     except:
         writeFlag = False
     for allowMsg in allowMsgList:
@@ -54,6 +81,22 @@ async def sb(session: CommandSession):
             writeFlag = False
             sendFlag = False
     if writeFlag == True:
+        if i_am_admin and is_admin:
+            try:
+                if lastSb[group_id] == user_id:
+                    sbCnt[group_id] += 1
+                else:
+                    lastSb[group_id] = user_id
+                    sbCnt[group_id] = 1
+            except:
+                lastSb[group_id] = user_id
+                sbCnt[group_id] = 1
+            if sbCnt[group_id] >= 6:
+                await bot.set_group_ban(group_id=group_id, user_id=lastSb[group_id], duration=60)
+                await session.send('[CQ:reply,id=' + str(message_id) + ']您连续说了' + str(sbCnt[group_id]) + '次sb，禁言1分钟！')
+                sendFlag = False
+                sbCnt[group_id] = 0
+                lastSb[group_id] = 0
         db_write(1, group_id, user_id)
     if sendFlag == True:
         await session.send('[CQ:reply,id=' + str(message_id) + ']' + ansList[random.randint(0, len(ansList) - 1)])
