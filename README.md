@@ -1,2 +1,2 @@
 # asbot
-An useless QQ bot, based on nonebot v1.
+A useless QQ bot, based on nonebot v1.

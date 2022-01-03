@@ -15,12 +15,11 @@ async def mute_me(session: CommandSession):
     sb_info = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
     i_am_admin = my_info['role'] in ['admin', 'owner']
     is_admin = sb_info['role'] not in ['admin', 'owner']
-    if session.current_arg == '' or not '0' <= session.current_arg <= '8':
-        length = '10'
-    else:
-        length = session.current_arg
     try:
-        length = eval(length)
+        length = eval(session.current_arg)
+    except:
+        length = 10
+    try:
         if '晚安' in msg or 'sleep' in msg:
             if session.current_arg == '':
                 length = 8
@@ -31,13 +30,14 @@ async def mute_me(session: CommandSession):
             if sendFlag:
                 await session.send('[CQ:reply,id=' + str(message_id) + ']' + '晚安！')
         elif '禅定' in msg or '馋腚' in msg:
+            notice = ''
             if session.current_arg == '':
                 length = random.randint(1, 60)
-            elif not 0 <= length <= 3600:
-                await session.send('[CQ:reply,id=' + str(message_id) + ']' + '时间太长了！')
-                sendFlag = False
+            elif not 1 <= length <= 480:
+                length = 10
+                notice = '非法输入，将采用默认值。'
             if sendFlag:
-                await session.send('[CQ:reply,id=' + str(message_id) + ']' + '禅定' + str(length) + '分钟！')
+                await session.send('[CQ:reply,id=' + str(message_id) + ']' + notice + '禅定' + str(length) + '分钟！')
     except:
         sendFlag = False
     length = length * 60
