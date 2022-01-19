@@ -16,7 +16,7 @@ async def mute_me(session: CommandSession):
     i_am_admin = my_info['role'] in ['admin', 'owner']
     is_admin = sb_info['role'] not in ['admin', 'owner']
     try:
-        length = eval(session.current_arg)
+        length = int(session.current_arg)
     except:
         length = 10
     try:

@@ -1,5 +1,5 @@
 from nonebot import on_command, CommandSession
-import random, sqlite3, nonebot
+import random, sqlite3, nonebot, time
 from config import groupID, GoodAnsList, badAnsList, blockedGroupID, allowMsgList, blockMsgList
 
 bot = nonebot.get_bot()
@@ -24,6 +24,13 @@ def db_read(groupID, limit):
     con.close()
     return readout
 
+def db_read_count(groupID, qqNum):
+    con = sqlite3.connect('asbot.db')
+    cur = con.cursor()
+    readout = cur.execute('select count from sbTop where grpNum=? and qqNum=?', (groupID, qqNum)).fetchall()
+    con.close()
+    return readout[0][0]
+
 def un_cap(raw):
     out = ''
     for c in raw:
@@ -34,10 +41,10 @@ def un_cap(raw):
     return out
 
 lastSb = {}
-sbCnt = {}
+sbTime = {}
 
 #----main----
-
+'''
 @nonebot.scheduler.scheduled_job('cron', hour='20')
 async def auto_mute():
     my_id = await bot.get_login_info()
@@ -53,14 +60,13 @@ async def auto_mute():
         if i_am_admin and is_admin:
             await bot.send_group_msg(group_id=group, message='[CQ:at,qq=' + str(user_id) + ']今日您是sbTop榜首！作为机器人，我无权将您禁言。但请问问自己：“这一切值得吗？”')
             #await bot.set_group_ban(group_id=group, user_id=user_id, duration=600)
-
+'''
 @on_command('sb', only_to_me=False, patterns='傻逼|[sS][bB]|啥[bB]')
 async def sb(session: CommandSession):
-    global lastSb, sbCnt
     message_id = session.event['message_id']
     user_id = session.event['user_id']
     rawMessage = session.event['raw_message']
-    writeFlag, sendFlag = True, True
+    writeFlag, sendFlag, muteFlag = True, True, False
     ansList = GoodAnsList
     for word in blockMsgList:
         if '菊宝' in rawMessage or word in rawMessage:
@@ -74,30 +80,53 @@ async def sb(session: CommandSession):
         sb_info = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
         i_am_admin = my_info['role'] in ['admin', 'owner']
         is_admin = sb_info['role'] not in ['admin', 'owner']
+        '''
+        if db_read_count(group_id, user_id) >= 400:
+            writeFlag = False
+            sendFlag = False
+        '''
     except:
         writeFlag = False
+        i_am_admin = False
+        is_admin = False
     for allowMsg in allowMsgList:
         if allowMsg in un_cap(rawMessage):
             writeFlag = False
             sendFlag = False
+    try:
+        if time.time_ns() // 1000000000 <= sbTime[user_id] + 15:
+            writeFlag = False
+            sendFlag = False
+            muteFlag = True
+        else:
+            sbTime[user_id] = time.time_ns() // 1000000000
+    except:
+        sbTime[user_id] = time.time_ns() // 1000000000
     if writeFlag == True:
         if i_am_admin and is_admin:
             try:
-                if lastSb[group_id] == user_id:
-                    sbCnt[group_id] += 1
+                if lastSb[group_id][0] == user_id:
+                    lastSb[group_id][1] += 1
                 else:
-                    lastSb[group_id] = user_id
-                    sbCnt[group_id] = 1
+                    lastSb[group_id][0] = user_id
+                    lastSb[group_id][1] = 1
             except:
-                lastSb[group_id] = user_id
-                sbCnt[group_id] = 1
-            if sbCnt[group_id] >= 6:
-                await bot.set_group_ban(group_id=group_id, user_id=lastSb[group_id], duration=60)
-                await session.send('[CQ:reply,id=' + str(message_id) + ']您连续说了' + str(sbCnt[group_id]) + '次sb，禁言1分钟！')
+                lastSb[group_id] = []
+                lastSb[group_id].append(user_id)
+                lastSb[group_id].append(1)
+            if lastSb[group_id][1] >= 6:
+                muteFlag = True
                 sendFlag = False
-                sbCnt[group_id] = 0
-                lastSb[group_id] = 0
+                lastSb[group_id][0] = 0
+                lastSb[group_id][1] = 0
         db_write(1, group_id, user_id)
+    #print(lastSb, sbTime)
+    if muteFlag == True:
+        if i_am_admin and is_admin:
+            await bot.set_group_ban(group_id=group_id, user_id=user_id, duration=600)
+            await session.send('[CQ:reply,id=' + str(message_id) + ']sb频次过高，禁言10分钟！')
+        else:
+            sendFlag = False
     if sendFlag == True:
         await session.send('[CQ:reply,id=' + str(message_id) + ']' + ansList[random.randint(0, len(ansList) - 1)])
 
